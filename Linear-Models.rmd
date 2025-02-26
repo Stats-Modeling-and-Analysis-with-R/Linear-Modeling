@@ -1,0 +1,381 @@
+---
+title: "Homework 2"
+output:
+  html_document:
+    df_print: paged
+---
+
+You will need to install and load the following R packages:
+“alr4”
+“smss”
+```{r}
+library(alr4)
+library(smss)
+library(stargazer)
+library(ggeffects)
+library(ggplot2)
+library(skimr)
+library(lmtest)
+library(zoo)
+```
+# Question 1
+For recent data in Jacksonville, Florida, where
+y = selling price of home (in dollars),
+x1 = size of home (in square feet), and
+x2 = lot size (in square feet)
+
+The linear regression prediction equation is  ŷ = −10,536 + 53.8x1 + 2.84x2
+
+1) A particular home of 1240 square feet on a lot of 18,000 square feet sold for $145,000.
+   1) Based on the provided model, find the predicted selling price for a house with those parameters, calculate the residual and interpret.
+
+```{r}
+house_model <- function (x1, x2) {
+  -10536 + (53.8 * x1) + (2.84 * x2)
+}
+
+x1 <- 1240 # size of home
+x2 <- 18000 # lot size
+y <- 145000
+
+y_hat <- house_model(x1, x2)
+e <- y - y_hat
+
+sprintf("The model predicted to sell the house at: $%f", y_hat)
+sprintf("The house sold at: $%f", y)
+sprintf("The residual is: $%f", e)
+print("Interpretation: Based on the Jacksonville house data, the home over sold for more than its expected value. It over sold by $37704. This may indicate also that the current model does not fully capture all relavent IVs that factor into home price. There could have been other factors other than home size and lot size the impacted the true price. Congratulations to the home sellers. Maybe sorry for the buyers.")
+```
+
+2) For fixed lot size, how much is the house selling price predicted to increase for each square-foot increase in home size? Why?
+If the lot size is fixed, then the selling price of a home is predicted to increase by $53.8 for each unit increase of home size. This is because in our model the beta value (b1) for home size (x1) is 53.8.
+
+3) According to this prediction equation, for fixed home size, how much would lot size need to increase to have the same impact as a one-square-foot increase in home size?
+
+```{r}
+change <- 53.8 / 2.84 # divide b1 by b2 to get change in x2 needed
+
+# checking work
+-10536 + (53.8 * 1) + (2.84 * 1) # x1 and x2 same
+-10536 + (53.8 * (1+1)) + (2.84 * 1) # x1 has 1 unit increase
+-10536 + (53.8 * 1) + (2.84 * (1+change)) # x2 has 19.94 unit increase. results match
+sprintf("The lot size x2 would need to increase by %f to have the same impact as home size.", change)
+
+```
+
+# Question 2
+Take your time with this question and make sure to answer each part. Load the “smss” package and then the “house.selling.price” dataset from that package. This data reflects selling prices of homes in Jacksonville, FL in Fall 2006 and has the following variables for analysis:
+
+- Case = CaseID
+- Price = House Selling Price in US Dollars
+- Size = Size of home in square footage
+- Baths = Number of bathrooms
+- New = New build or not
+- Taxes = Amount Property Taxes Paid on House
+
+```{r}
+data(house.selling.price)
+head(house.selling.price)
+summary(house.selling.price)
+skim(house.selling.price)
+```
+
+
+1) Using the house.selling.price data, run and report regression results modeling y = selling price (in dollars) in terms of size of home (in square feet) and whether the home is new (1 = yes; 0 = no).
+
+```{r}
+lm1 <- lm(Price ~ Size + New, data = house.selling.price)
+stargazer(lm1, digits = 2, type = "text")
+
+print("The regresion model for home price (dollars) in terms of size of home (x1) and new is (x2)")
+print("Answer: y =  - 40230.87 + 116.13x1 + 57736.28x2")
+print("Meaning: Assuming all else constant, for every 1 unit increase in Size leads to a $116.13 increase in home price. Also, assuming all else constant, a new home (x2=1) leads to a $57736.28 increase in home price.")
+```
+
+2) Fully interpret the results.
+- Which variables are significantly related to your DV? How do you know?
+- What is the direction of the relationship between each IV and DV?
+- What do the beta weights tell you about the relationship between each IV and DV?
+  - Don’t forget to also use everyday language to describe the relationships
+- Draw a conclusion about the overall model predicting price
+
+Answer:
+- Both the IVs, size of the home and new status, are significant to the DV home price. I know because the stargazer command calculates the significant values for me and indicates their level with ***. Both Size and New have *** which means a p value less than 0.01. Another check is both Size and New pass the "Divide by 2 estimate" where b/se > 2 indicates a significant relationship p < 0.05. New is 116.13 / 8.79 = 13.2116 > 2 and 57736.28 / 18653.04 = 2.095 > 2
+- Size and New both have a positive direction in relation to the DV Price. This is because their coefficients are positive. When Size increases and all else is constant, price will increase. When New is 1, price will increase.
+- The beta weights tell us the following. Holding all else constant, a 1 unit increase in Size of a home will lead to an average increase in Price by $116.13. Holding all else constant, a New home on average will increase the price of a home by $57,736.28 compared to a non new home.
+- Our model's residual is $53889.95. Are models R2 and Adjusted R2 is 0.72 which means our model explains about 72% of variation in our DV home selling price.
+- The F statistic is 126.34 and it is significant (p<0.01). This means our model as a whole (including all IVs) is better than just guessing the mean of price.
+- Overall conclusion: Based on our model, Bigger homes that are new will have a significant impact on the average selling price of a homes. New homes have larger impact on the average selling price of a home compared to the size of a home.
+
+
+3) Based on your results, calculate the predicted selling price for a home of…
+   1) 3000 square feet split by new or not new
+   2) 1500 square feet split by new or not new
+   3) What is the difference between these predictions?
+
+```{r}
+house_model <- function (x1, x2) {
+  40230.87 + (116.13*x1) + (57736.28*x2)
+}
+# 3000 square feet split by new or not new
+x1 <- 3000
+house1_new <- house_model(x1, 1)
+house1_old <- house_model(x1, 0)
+sprintf("A 3000 sqr ft new house is predicted to be: %f", house1_new)
+sprintf("A 3000 sqr ft old house is predicted to be: %f", house1_old)
+# 1500 square feet split by new or not new
+x1 <- 1500
+house2_new <- house_model(x1, 1)
+house2_old <- house_model(x1, 0)
+sprintf("A 1500 sqr ft new house is predicted to be: %f", house2_new)
+sprintf("A 1500 sqr ft old house is predicted to be: %f", house2_old)
+# What is the difference between these predictions?
+sprintf("Going from a 3000 sqr ft new home to a 1500 sqr ft new home reduces its value by $%f", house1_new-house2_new)
+sprintf("Going from a 3000 sqr ft old home to a 1500 sqr ft old home reduces its value by $%f", house1_old-house2_old)
+
+sprintf("Going from a 3000 sqr ft new home to a 3000 sqr ft old home reduces its value by $%f", house1_new-house1_old)
+sprintf("Going from a 1500 sqr ft new home to a 1500 sqr ft old home reduces its value by $%f", house2_new-house2_old)
+print("The difference between predictions 1) and 2) is the house size decreased by half.")
+```
+
+4) Use the ‘ggpredict’ function from the ‘ggeffects’ package and produce a GGPlot of predicted values with size on the x-axis and if house is new build or not as separate lines on the plot.
+    - Make sure to include the 95% CI on the graph
+    - Also do not forget to appropriately label the axes and the legend.
+```{r}
+non_int<-ggpredict(lm1, terms=c("Size [700:4000, by=200]", "New")) #Manually set break points
+
+
+ggplot(non_int, aes(x = x, y = predicted, color = factor(group), group = factor(group))) +
+  geom_line() +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.05) +
+  labs(title = "Predicted Home Selling Price X with New Home Build or Not with Confidence Intervals",
+       x = "Square Footage",
+       y = "Predicted Selling Price",
+       color = "New Home or Not") +
+  scale_color_manual(values = c("0" = "blue", "1" = "red"),
+                     labels = c("0" = "Old", "1" = "New")) +
+  theme_minimal()
+
+```
+
+
+
+5) Build a more fully specified model using other appropriate predictor variables. Think carefully about the other variables that COULD be included and then re-estimate the model from part A in this question. Only include the new variable(s) that you think could theoretically “cause” the selling price of a house to be different.
+    - Fully interpret the new model in the same way as in Part 2 above
+      - You do not need to use the GGPredict function in this part of the question but you are welcome to if you want.
+    - Compare the new model to the initial model estimated in Part A.
+      - What happens to the initial estimates from Part A when you included additional predictors?
+      - Use Stargazer or jtools to create a side-by-side regression table
+        - Do not forget to clean the table – i.e. appropriately labeled variables, etc. – before submitting
+      - Draw a conclusion on which model better reflects the reality of selling price for a house in Jacksonville in 2006
+
+Answer:
+Selecting Variables:
+The remaining variables in the model are "case", "Taxes", "Beds", and "Baths". I will not include "case" in my model since this is just an ID variable. I am interested in Beds and Baths because I assume they will add value to a house since people would like those things and it costs money to add to a home. I wonder if they are highly correlated with home size so I make a correlation table. I do not want to include highly correlated variables as it will add inefficiency to my model. I am also interested in taxes. I assume lower "Taxes" will add value to a home price because I assume people would want to live in a place with lower taxes.
+
+```{r}
+house.selling.price
+cor(house.selling.price)
+```
+
+From the table above, I see that "Beds" does not have a high correlation. So I will include this in my model. I see that "Baths" is somewhat more correlated with "Size", thus I will exclude it. I expected their to be a higher correlation with home Size and Beds and Baths but this was not the case. Maybe the extra space/home size people use for other stuff instead of just adding more beds and baths. I see that taxes is highly correlated (more than 0.8) with Price and Size so I will exclude it to avoid multicollinearity. It makes sense it is highly correlated since the home data is from one location and bigger more expensive houses in 1 area will have higher taxes.
+
+Building Model:
+
+My model will be how the size of a home, whether it is new or old, and the number of beds (IV) impact price (DV)
+```{r}
+lm2 <- lm(Price ~ Size + New + Beds, data = house.selling.price)
+stargazer(lm1, lm2, digits = 2, type = "text", column.labels = c("Original Model (lm1)", "New Model (lm2)"))
+```
+
+Interpretation & Comparison:
+
+- In my new model, lm2, IV Size and New still remain significant (p<0.01). This is the same as the previous model, lm1. Beds was not significant.
+- Size and New still have positive beta values. Beds on the other hand has a negative beta value. Thus, when the number of beds increases by 1 unit, the price of the home goes down.
+- Regarding the beta weights, holding all else equal:
+  - Increasing Size by 1 unit adds $120.53 to our home selling price
+  - A new house unit adds $54,899.56 to our home selling price
+  - Increasing beds by 1 unit reduces the selling price by $7,292.74
+- Regarding the IVs, adding Beds increased the beta of Size slightly in lm2 compared to the lm1. It also reduced the beta of New. Adding beds also increased the error of Size and New compared to the previous model. Its possible Beds added extra complication/noise to our new model.
+- The new model's residual is $54016.06. lm2's R2 and Adjusted R2 is 0.72 which means our model explains about 72% of variation in our DV home selling price. This is the same as the lm1
+- The F statistic is 82.87.34 and it is still significant (p<0.01). This means our model as a whole (including all IVs) is better than just guess the mean of price.
+  - Our F stati is lower than the previous model which may indicate a weaker model. This is in part due to adding more IVs reduces our F score.
+- Overall conclusion:
+  - For our new model, regarding Size and New the conclusion is similar to the previous model: Based on our model, Bigger homes that are new will have a significant impact on the average selling price of a homes. New homes have larger impact on the average selling price of a home compared to the size of a home.
+  - For our new model, I believe the Beds value is misleading. I think it adds extra noise to our data, a weaker IV, and thus makes our model worse. I do not think more Beds actually take away value from a home price and believe its an example of the simbsons paradox (which was shown in class).
+  - I believe the previous model, model 1, is a better model than the new one I just made. It is a simpler model that captures the truth that bigger & newer homes will sell more. It also does not have the "Beds" IV which can lead to inaccuarate conlcusions for people who don't know about the sibmsons paradox.
+
+
+# Question 3
+In Question 2, you used the “house.selling.price” dataset from the ‘smss’ package to estimate a model predicting the selling price of homes in Jacksonville, Fl. Using that same dataset, estimate a model once again using these variables:
+
+- DV = Price
+- IVs =
+  - Size = Size of home in square footage
+  - Baths = Number of bathrooms
+  - New = New build or not
+
+## Tasks:
+- Check linear regression assumptions for any violations. Are there any?
+- If so, what would you recommend doing to account for the violation(s)?
+
+```{r}
+lm3 <- lm(Price ~ Size + New + Baths, data = house.selling.price)
+
+par(mfrow=c(2,3)); plot(lm3, which=1:6)
+
+```
+
+Checking Linear Regression Assumptions:
+- Linearity Assumptions:
+Based on the Residuals vs Fitted plot, it seems our model is not linear as it does not follow the dotted line and has a slight flat u-curve. Unchanged, this can lead to some bias on our model.
+Solution: We could include a polynomial in our model or perform a log transformation.
+
+- Zero Mean Value of the Error Term
+Residuals sum to 0 by definition. No actions needed.
+
+- Homoscedasticity
+Based on the Residuals vs Fitted plot, it sees our model is does not have a constant variance. This is indicated by the concentration of residuals in one area and then the funneling out of residuals as the error increases.
+The Scale Location graph also shows a rising trend line/upward slope with our errors. Indicating non constant variance.
+
+```{r}
+bp_test <- bptest(lm3)
+bp_test
+```
+
+The Breush-Pagan test gives us a p-value less than 0.01. The null H0=Our model has constant variance. Since our p-value is low, we reject the null and show lm3 is not Homoskedastic
+
+Solution: We could use Robost Standard Errors --> adjust our standard error based on variance of model lm3. We can use squared residuals for each case.
+
+- No Autocorrelation
+Each entry in the dataset is single home. The homes are independent and our error terms are independent.
+
+- n must be greater than # of predictors
+This is fine, we have more data points than predictor variables.
+
+- No perfect multicollinearity
+Based on the correlation table in question 2. There is no predictor variable that is perfectly correlated with another. Size, Baths, and New also do not have super high correlations.
+
+- Correct model specification
+We were given this dataset for this assignment. We can assume its fine.
+
+- Nomrally distributed error terms
+Based on the QQ Plot, it seems to indicate our model's errors are normally distributed. There are some outlier variables that float away from the desired line which could be a problem.
+
+```{r}
+lm3_residuals <- residuals(lm3)
+shapiro.test(lm3_residuals)
+```
+
+The Shapiro Wilks test gives us a small p-value less than 0.01 thus we reject H0 that our errors are normally distributed.
+
+Solution: We can do a log or polynomial transformation on our data or model.
+
+- Outlier Consideration:
+Not necessarily a violation but worth mentioning. From the Cook's Distance graph, we see 1 value at or very close to 1 and a few values greater than 4/100. Those points may be worth removing if they anomolies that skew our model.
+
+# Question 4
+Using the ‘UN11’ dataset from ‘alr4’, evaluate a possible non-linear relationship between the variables, ‘ppgdp’ and ‘fertility’, by doing the following.
+
+```{r}
+data(UN11)
+head(UN11)
+summary(UN11)
+skim(UN11)
+```
+
+## Part 1:
+1) Create a scatter plot between the two variables – make sure to place the appropriate variable on the x and y-axes – including the linear best fit line and a loess line that evaluates a non-linear relationship between the two variables
+
+```{r}
+
+x <- UN11$ppgdp
+y <- UN11$fertility
+
+plot(x=x, y=y,
+     main = "PPGDP vs Fertility",
+     xlab = "PPGDP",
+     ylab = "Fertility",
+     pch = 19, col = "blue")
+
+
+lm4 <- lm(fertility ~ ppgdp, data = UN11)
+
+abline(lm4, col = "red")
+loe1 <- lowess(x=UN11$ppgdp, y=UN11$fertility)
+
+lines(loe1, col = "green")
+```
+
+2) Which line better reflects the underlying relationship between the two variables?
+The LOESS line better reflects the underlying relationship between PPGDP and Fertility. LOESS captures the curvature of the relationship.
+
+## Part 2:
+1) Calculate and save the natural log for both fertility and ppgdp in the UN11 dataset
+2) Create a scatterplot of log(fertility) versus log(ppgdp) using the newly created natural log variables
+3) Compare the relationship between the two logged variables with the unlogged variables. Which seems like the most plausible relationship between the two variables?
+```{r}
+log_x <- log(UN11$ppgdp)
+log_y <- log(UN11$fertility)
+
+plot(x=log_x, y=log_y,
+     main = "PPGDP vs Fertility (Log Transformation)",
+     xlab = "PPGDP",
+     ylab = "Fertility",
+     pch = 19, col = "blue",)
+
+
+lm4 <- lm(log_y ~ log_x, data = UN11)
+
+abline(lm4, col = "red")
+loe1 <- lowess(x=log_x, y=log_y)
+
+lines(loe1, col = "green")
+```
+
+The log transformation of ppgdp vs fertility is much more linear compared to the untransformed ppgdp vs fertility data. The plot in the logged data is much tigher on the Y axis with much fewer outliers compared to the original data. Both datasets show a negative relationship between PPGDP and fertility. The logged model is smaller extreme values compared to the original. The logged model seems more plausible compared to the original because it has squashed the extreme values in the data while maintaining the original trend.
+
+## Part 3:
+1) Estimate a linear model between the two variable as well as a log-log model using the newly created variables.
+2) Put the models in the same table and evaluate which one better reflects the relationship.
+3) Evaluate the model assumptions for the log-log model and decide if any are violated. If any are violated, describe why you drew that conclusion.
+
+```{r}
+origin_lm1 <- lm(fertility ~ ppgdp, data = UN11)
+log_lm1 <- lm(log(fertility) ~ log(ppgdp), data = UN11)
+
+stargazer(origin_lm1, log_lm1, digits = 2, type = "text")
+```
+
+Better Model:
+The log-log model better captures the relationship between fertility and ppgdp better than the untransformed model.
+- The untransformed model's beta for ppgdp is 0 (or a really small negative) which implies all else equal fertility rate does not increase as ppdgp increases. It has a constant of 3.18 that that is essentially the prediciton.
+- The original model also hasw low R2 and adjsuted R2
+- The log-log model shows a relationship between log ppgdp and fertility as log ppgdp has a negative beta of -0.21, indicating the negative relationship between ppgdp and fertility. Also it is significant, p<0.01.
+- The log-log model also has a larger F score (also signficant p <0.01) and a better R2 and adjusted R2 score indicating the log-log model can explain ~52% of the variation.
+
+Evaluating Model Assumptions:
+```{r}
+par(mfrow=c(2,3)); plot(log_lm1, which=1:6)
+par(mfrow=c(2,3)); plot(origin_lm1, which=1:6)
+bptest(log_lm1)
+cor(x=log_x, y=log_y)
+```
+
+Checking Linear Regression Assumptions:
+- Linearity Assumptions:
+Based on the Residuals vs Fitted plot, the log-log model seems normal. It has a slight curve, but it is much better than the original model. I do no think this assumption has been violated.
+
+- Homoscedasticity
+The Scale Location graph shows a relatively flat line with slight bumps. This in and the spread of the points seems to indicate the log-log model is homoscedastic.
+The Breush-Pagan test gives us a p-value > 0.05. The null H0=Our model has constant variance. Since our p-value is higher than 0.05, we fail to reject the null.
+
+- No perfect multicollinearity
+The correlation between log ppgdp and fertility is -0.725 which is on the higher side. It is not perfectly linear and we only have 1 IV so I believe its fine.
+
+- Nomrally distributed error terms
+Based on the QQ Plot, it seems to indicate our model's errors are normally distributed. Most of the points fall on the line and the outliers don't stray too far from it.
+
+- Outlier Consideration:
+Not necessarily a violation but worth mentioning. From the Cook's Distance graph, no values are greater than 1. There are a few observations greater than 4/119, so they may be worth examining to determine if they are worth removing.
+
